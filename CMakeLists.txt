@@ -19,6 +19,7 @@ include(${PROJECT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake)
 
 find_package(indicators CONFIG REQUIRED)
 find_package(double-conversion CONFIG REQUIRED)
+find_package(unordered_dense CONFIG REQUIRED)
 
 add_executable(GenerateData src/GenerateData.cpp)
 target_link_libraries(GenerateData PRIVATE indicators::indicators)
@@ -26,3 +27,4 @@ target_link_libraries(GenerateData PRIVATE double-conversion::double-conversion)
 
 add_executable(AggregateData src/AggregateData.cpp)
 target_link_libraries(AggregateData PRIVATE double-conversion::double-conversion)
+target_link_libraries(AggregateData PRIVATE unordered_dense::unordered_dense)

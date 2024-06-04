@@ -22,6 +22,10 @@ public:
     {
         return m_distribution(m_generator);
     }
+    const double GetAverageTemperature() noexcept
+    {
+        return m_averageTemperature;
+    }
 
 private:
     std::string m_name;

@@ -4,7 +4,8 @@
     "version": "0.0.1",
     "dependencies": [
         "indicators",
-        "double-conversion"
+        "double-conversion",
+        "unordered-dense"
     ],
     "builtin-baseline": "47364fbc300756f64f7876b549d9422d5f3ec0d3"
 }

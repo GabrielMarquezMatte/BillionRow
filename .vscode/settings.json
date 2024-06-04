@@ -68,6 +68,21 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "unordered_map": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "memory_resource": "cpp",
+        "csignal": "cpp",
+        "deque": "cpp",
+        "map": "cpp",
+        "numeric": "cpp",
+        "unordered_set": "cpp",
+        "xtree": "cpp",
+        "ranges": "cpp",
+        "coroutine": "cpp",
+        "queue": "cpp",
+        "regex": "cpp",
+        "set": "cpp",
+        "span": "cpp",
+        "stack": "cpp",
+        "spanstream": "cpp"
     }
 }
