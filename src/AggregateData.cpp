@@ -56,11 +56,9 @@ int main()
         return 1;
     }
     ankerl::unordered_dense::map<std::size_t, Indicators> indicators;
-    std::stringstream buffer;
-    buffer << file.rdbuf();
     char line[1024] = {0};
     auto start = std::chrono::high_resolution_clock::now();
-    while(buffer.getline(line, sizeof(line) - 1, '\n'))
+    while(file.getline(line, sizeof(line) - 1, '\n'))
     {
         CalculateForLine(line, indicators);
     }
