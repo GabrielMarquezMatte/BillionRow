@@ -470,7 +470,7 @@ std::size_t ParseStation(Station& station, char* buffer, int bufferLength) noexc
     std::memcpy(buffer, name.data(), size);
     buffer[size++] = ';';
     double_conversion::StringBuilder builder(buffer + size, static_cast<int>(bufferLength - size));
-    converter.ToFixed(temperature, 2, &builder);
+    converter.ToFixed(temperature, 1, &builder);
     size += builder.position();
     return size;
 }
