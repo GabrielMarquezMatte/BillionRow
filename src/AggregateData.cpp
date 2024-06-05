@@ -34,28 +34,31 @@ struct CustomHash final
 
 constexpr inline double ParseDouble(const std::string_view value)
 {
-    double result = 0.0;
-    double decimal = 0.1;
+    std::size_t result = 0;
+    int fractional_length = 0;
     bool negative = value[0] == '-';
     bool decimalPoint = false;
     for(std::size_t i = negative; i < value.size(); i++)
     {
-        if(value[i] == '.')
+        char c = value[i];
+        if(c == '.')
         {
             decimalPoint = true;
             continue;
         }
+        result = result * 10 + (c - '0');
         if(decimalPoint)
         {
-            result += (value[i] - '0') * decimal;
-            decimal *= 0.1;
-        }
-        else
-        {
-            result = result * 10 + (value[i] - '0');
+            fractional_length++;
         }
     }
-    return negative ? -result : result;
+    double power = 0.1;
+    for(int i = 0; i < fractional_length; i++)
+    {
+        power *= 0.1;
+    }
+    double final_result = result * power;
+    return negative ? -final_result : final_result;
 }
 
 void CalculateForLine(const std::string_view line, ankerl::unordered_dense::map<std::string, Indicators, CustomHash>& indicators)

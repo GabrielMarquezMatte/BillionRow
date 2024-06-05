@@ -42,7 +42,7 @@ def build_weather_station_name_list():
     Grabs the weather station names from example data provided in repo and dedups
     """
     station_names = []
-    with open('data/weather_stations.csv', 'r', encoding="utf-8") as file:
+    with open('weather_stations.csv', 'r', encoding="utf-8") as file:
         file_contents = file.read()
     for station in file_contents.splitlines():
         if "#" in station:
