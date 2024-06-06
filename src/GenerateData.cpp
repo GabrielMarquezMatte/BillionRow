@@ -18,7 +18,7 @@ public:
     {
         return m_name;
     }
-    constexpr inline double GenerateTemperature() noexcept
+    inline double GenerateTemperature() noexcept
     {
         return m_distribution(m_generator);
     }
