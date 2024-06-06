@@ -18,11 +18,11 @@ public:
     {
         return m_name;
     }
-    const double GenerateTemperature() noexcept
+    constexpr inline double GenerateTemperature() noexcept
     {
         return m_distribution(m_generator);
     }
-    const double GetAverageTemperature() noexcept
+    constexpr inline double GetAverageTemperature() noexcept
     {
         return m_averageTemperature;
     }

@@ -196,6 +196,10 @@ int main()
     output.close();
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Number of lines: " << count << '\n';
+#if defined(_MSC_VER)
     std::cout << "Elapsed: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start) << '\n';
+#else
+    std::cout << "Elapsed: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms\n";
+#endif
     return 0;
 }

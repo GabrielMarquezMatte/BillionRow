@@ -19,9 +19,11 @@
 
 import os
 import sys
-import random
+from tqdm import tqdm
 import time
-
+import numpy as np
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import pandas as pd
 
 def check_args(file_args):
     """
@@ -68,16 +70,14 @@ def format_elapsed_time(seconds):
     """
     if seconds < 60:
         return f"{seconds:.3f} seconds"
-    elif seconds < 3600:
+    if seconds < 3600:
         minutes, seconds = divmod(seconds, 60)
-        return f"{int(minutes)} minutes {int(seconds)} seconds"
-    else:
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        if minutes == 0:
-            return f"{int(hours)} hours {int(seconds)} seconds"
-        else:
-            return f"{int(hours)} hours {int(minutes)} minutes {int(seconds)} seconds"
+        return f"{int(minutes)} minutes {seconds:.3f} seconds"
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if minutes == 0:
+        return f"{int(hours)} hours {int(seconds)} seconds"
+    return f"{int(hours)} hours {int(minutes)} minutes {int(seconds)} seconds"
 
 
 def estimate_file_size(weather_station_names, num_rows_to_create):
@@ -97,40 +97,35 @@ def estimate_file_size(weather_station_names, num_rows_to_create):
 
     return f"Estimated max file size is:  {human_file_size}."
 
+def generate_batch(weather_station_names, batch_size, coldest_temp, hottest_temp):
+    batch = np.random.choice(weather_station_names, size=batch_size)
+    temperatures = np.random.uniform(coldest_temp, hottest_temp, size=batch_size)
+    return [b.encode() + f';{t:.1f}'.encode() for b, t in zip(batch, temperatures)]
 
-def build_test_data(weather_station_names, num_rows_to_create):
+
+def build_test_data(weather_station_names: list[str], num_rows_to_create: int):
     """
     Generates and writes to file the requested length of test data
     """
     start_time = time.time()
     coldest_temp = -99.9
     hottest_temp = 99.9
-    station_names_10k_max = random.choices(weather_station_names, k=10_000)
-    batch_size = 100000 # instead of writing line by line to file, process a batch of stations and put it to disk
+    station_names_10k_max = np.random.choice(weather_station_names, size=10_000)
+    batch_size = 10000 # instead of writing line by line to file, process a batch of stations and put it to disk
     chunks = num_rows_to_create // batch_size
     print('Building test data...')
-
     try:
-        with open("data/data.csv", 'w', encoding="utf-8") as file:
-            progress = 0
-            for chunk in range(chunks):
-                
-                batch = random.choices(station_names_10k_max, k=batch_size)
-                prepped_deviated_batch = '\n'.join((f"{station};{random.uniform(coldest_temp, hottest_temp):.1f}" for station in batch)) # :.1f should quicker than round on a large scale, because round utilizes mathematical operation
-                file.write(prepped_deviated_batch + '\n')
-                
-                # Update progress bar every 1%
-                if (chunk + 1) * 100 // chunks != progress:
-                    progress = (chunk + 1) * 100 // chunks
-                    bars = '=' * (progress // 2)
-                    sys.stdout.write(f"\r[{bars:<50}] {progress}%")
-                    sys.stdout.flush()
+        with ProcessPoolExecutor(max_workers=6) as executor:
+            futures = (executor.submit(generate_batch, station_names_10k_max, batch_size, coldest_temp, hottest_temp) for _ in range(chunks))
+            with open("data/data.csv", 'wb') as file:
+                for future in tqdm(as_completed(futures), total=chunks, desc="Writing to file", unit="chunks"):
+                    batch = future.result()
+                    file.write(b'\n'.join(batch) + b'\n')
         sys.stdout.write('\n')
     except Exception as e:
         print("Something went wrong. Printing error info and exiting...")
         print(e)
         exit()
-    
     end_time = time.time()
     elapsed_time = end_time - start_time
     file_size = os.path.getsize("data/data.csv")

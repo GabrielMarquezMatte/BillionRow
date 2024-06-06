@@ -6,7 +6,6 @@
         "indicators",
         "double-conversion",
         "unordered-dense",
-        "concurrentqueue",
         "mio"
     ],
     "builtin-baseline": "47364fbc300756f64f7876b549d9422d5f3ec0d3"
