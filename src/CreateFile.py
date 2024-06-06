@@ -23,7 +23,6 @@ from tqdm import tqdm
 import time
 import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import pandas as pd
 
 def check_args(file_args):
     """
@@ -111,7 +110,7 @@ def build_test_data(weather_station_names: list[str], num_rows_to_create: int):
     coldest_temp = -99.9
     hottest_temp = 99.9
     station_names_10k_max = np.random.choice(weather_station_names, size=10_000)
-    batch_size = 10000 # instead of writing line by line to file, process a batch of stations and put it to disk
+    batch_size = min(100000, num_rows_to_create) # instead of writing line by line to file, process a batch of stations and put it to disk
     chunks = num_rows_to_create // batch_size
     print('Building test data...')
     try:

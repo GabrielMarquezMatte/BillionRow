@@ -53,7 +53,7 @@ constexpr inline double ParseDouble(const std::string_view value)
         }
     }
     double power = 0.1;
-    for(int i = 0; i < fractional_length; i++)
+    for(int i = 1; i < fractional_length; i++)
     {
         power *= 0.1;
     }
