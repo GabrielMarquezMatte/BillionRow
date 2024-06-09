@@ -29,4 +29,7 @@ target_link_libraries(GenerateData PRIVATE double-conversion::double-conversion)
 
 add_executable(AggregateData src/AggregateData.cpp)
 target_link_libraries(AggregateData PRIVATE unordered_dense::unordered_dense)
-target_link_libraries(AggregateData PRIVATE mio::mio mio::mio-headers mio::mio_min_winapi mio::mio_full_winapi)
+target_link_libraries(AggregateData PRIVATE mio::mio mio::mio-headers)
+if(WIN32)
+    target_link_libraries(AggregateData PRIVATE mio::mio_min_winapi mio::mio_full_winapi)
+endif()

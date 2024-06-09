@@ -23,7 +23,8 @@ struct CustomHash final
     constexpr inline std::uint64_t operator()(const std::string_view key) const noexcept
     {
         std::uint64_t hash = 0;
-        const std::uint64_t size = std::min(key.size(), 8ULL);
+        const std::size_t keySize = key.size();
+        const std::uint64_t size = keySize > 8 ? 8 : keySize;
         for(std::uint64_t i = 0; i < size; i++)
         {
             hash += key[i] * powers[i];
@@ -84,10 +85,9 @@ static void CalculateForLine(const std::string_view line, ankerl::unordered_dens
 
 constexpr inline static std::size_t FindNewLineOffset(const std::span<const char> span, std::size_t offset)
 {
-    const char *data = span.data();
     for(std::size_t i = offset; i < span.size(); i++)
     {
-        if(data[i] == '\n')
+        if(span[i] == '\n')
         {
             return i;
         }
@@ -142,7 +142,8 @@ static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> Ca
     std::vector<ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>> results(threadCount);
     std::span<const char> span(file.data(), file.size());
     std::size_t spanSize = span.size();
-    std::size_t chunkSize = std::max(spanSize / threadCount, 1ULL);
+    std::size_t maxChunkSize = spanSize / threadCount;
+    std::size_t chunkSize = maxChunkSize < 1ULL ? 1ULL : maxChunkSize;
     std::size_t start = 0;
     for(std::size_t i = 0; i < threadCount; i++)
     {

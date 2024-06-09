@@ -18,13 +18,25 @@
         {
             "name": "Mingw64",
             "displayName": "MinGW 64-bit Release - x86_64",
-            "description": "Using compilers for Visual Studio 17 2022 (x64 architecture)",
+            "description": "Using compilers for MinGW 64-bit (x86_64 architecture)",
             "generator": "MinGW Makefiles",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
                 "CMAKE_C_COMPILER": "gcc.exe",
                 "CMAKE_CXX_COMPILER": "g++.exe",
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "Gcc",
+            "displayName": "GCC 13.1.0 x86_64-linux-gnu",
+            "description": "Using compilers: C = /usr/bin/gcc-13, CXX = /usr/bin/g++-13",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "/usr/bin/gcc-13",
+                "CMAKE_CXX_COMPILER": "/usr/bin/g++-13",
                 "CMAKE_BUILD_TYPE": "Release"
             }
         }
@@ -72,6 +84,36 @@
             "resolvePackageReferences": "on",
             "environment": {
                 "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "Gcc-debug",
+            "displayName": "GCC 13.1.0 x86_64-linux-gnu - Debug",
+            "configurePreset": "Gcc",
+            "configuration": "Debug",
+            "jobs": 4,
+            "resolvePackageReferences": "on",
+            "environment": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "/usr/bin/gcc-13",
+                "CMAKE_CXX_COMPILER": "/usr/bin/g++-13",
+                "CC": "/usr/bin/gcc-13",
+                "CXX": "/usr/bin/g++-13"
+            }
+        },
+        {
+            "name": "Gcc-release",
+            "displayName": "GCC 13.1.0 x86_64-linux-gnu - Release",
+            "configurePreset": "Gcc",
+            "configuration": "Release",
+            "jobs": 4,
+            "resolvePackageReferences": "on",
+            "environment": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "/usr/bin/gcc-13",
+                "CMAKE_CXX_COMPILER": "/usr/bin/g++-13",
+                "CC": "/usr/bin/gcc-13",
+                "CXX": "/usr/bin/g++-13"
             }
         }
     ]
