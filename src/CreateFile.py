@@ -96,9 +96,9 @@ def estimate_file_size(weather_station_names, num_rows_to_create):
 
     return f"Estimated max file size is:  {human_file_size}."
 
-def generate_batch(weather_station_names, batch_size, coldest_temp, hottest_temp):
+def generate_batch(weather_station_names, batch_size, average_temp: float, temp_deviation: float):
     batch = np.random.choice(weather_station_names, size=batch_size)
-    temperatures = np.random.uniform(coldest_temp, hottest_temp, size=batch_size)
+    temperatures = np.random.normal(average_temp, temp_deviation, size=batch_size)
     return [b.encode() + f';{t:.1f}'.encode() for b, t in zip(batch, temperatures)]
 
 
@@ -107,15 +107,13 @@ def build_test_data(weather_station_names: list[str], num_rows_to_create: int):
     Generates and writes to file the requested length of test data
     """
     start_time = time.time()
-    coldest_temp = -99.9
-    hottest_temp = 99.9
     station_names_10k_max = np.random.choice(weather_station_names, size=10_000)
     batch_size = min(100000, num_rows_to_create) # instead of writing line by line to file, process a batch of stations and put it to disk
     chunks = num_rows_to_create // batch_size
     print('Building test data...')
     try:
         with ProcessPoolExecutor(max_workers=6) as executor:
-            futures = (executor.submit(generate_batch, station_names_10k_max, batch_size, coldest_temp, hottest_temp) for _ in range(chunks))
+            futures = (executor.submit(generate_batch, station_names_10k_max, batch_size, 0, 20) for _ in range(chunks))
             with open("data/data.csv", 'wb') as file:
                 for future in tqdm(as_completed(futures), total=chunks, desc="Writing to file", unit="chunks"):
                     batch = future.result()

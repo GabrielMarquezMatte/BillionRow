@@ -20,11 +20,11 @@ static const std::size_t powers[] = {1, 31, 961, 29791, 923521, 28629151, 887503
 
 struct CustomHash final
 {
-    constexpr inline std::size_t operator()(const std::string& key) const noexcept
+    constexpr inline std::uint64_t operator()(const std::string_view key) const noexcept
     {
-        std::size_t hash = 0;
-        const std::size_t size = std::min(key.size(), 8ULL);
-        for(std::size_t i = 0; i < size; i++)
+        std::uint64_t hash = 0;
+        const std::uint64_t size = std::min(key.size(), 8ULL);
+        for(std::uint64_t i = 0; i < size; i++)
         {
             hash += key[i] * powers[i];
         }
@@ -32,10 +32,10 @@ struct CustomHash final
     }
 };
 
-constexpr inline double ParseDouble(const std::string_view value)
+constexpr inline static double ParseDouble(const std::string_view value)
 {
     std::size_t result = 0;
-    int fractional_length = 0;
+    int fractionalLength = 0;
     bool negative = value[0] == '-';
     bool decimalPoint = false;
     for(std::size_t i = negative; i < value.size(); i++)
@@ -49,29 +49,28 @@ constexpr inline double ParseDouble(const std::string_view value)
         result = result * 10 + (c - '0');
         if(decimalPoint)
         {
-            fractional_length++;
+            fractionalLength++;
         }
     }
-    double power = 0.1;
-    for(int i = 1; i < fractional_length; i++)
+    if(fractionalLength > 2)
     {
-        power *= 0.1;
+        std::unreachable();
     }
-    double final_result = result * power;
-    return negative ? -final_result : final_result;
+    double finalResult = static_cast<double>(result);
+    while(fractionalLength--)
+    {
+        finalResult *= 0.1;
+    }
+    return negative ? -finalResult : finalResult;
 }
 
-void CalculateForLine(const std::string_view line, ankerl::unordered_dense::map<std::string, Indicators, CustomHash>& indicators)
+static void CalculateForLine(const std::string_view line, ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>& indicators)
 {
     std::size_t pos = line.find(';');
-    std::string key = std::string(line.substr(0, pos));
+    std::string_view key = line.substr(0, pos);
     std::string_view value_string = line.substr(pos + 1);
-    while(value_string.back() == '\r' || value_string.back() == '\n')
-    {
-        value_string.remove_suffix(1);
-    }
     double value = ParseDouble(value_string);
-    auto [it, inserted] = indicators.try_emplace(key, Indicators{value, value, value, 1});
+    auto [it, inserted] = indicators.try_emplace(std::move(key), Indicators{value, value, value, 1});
     if(inserted)
     {
         return;
@@ -83,17 +82,22 @@ void CalculateForLine(const std::string_view line, ankerl::unordered_dense::map<
     indicator.Count++;
 }
 
-inline constexpr std::size_t FindNewLineOffset(const std::span<const char> span, std::size_t offset)
+constexpr inline static std::size_t FindNewLineOffset(const std::span<const char> span, std::size_t offset)
 {
     const char *data = span.data();
-    const char* start = data + offset;
-    const char* end = data + span.size();
-    const char* newLine = std::find(start, end, '\n');
-    return newLine == end ? span.size() : newLine - data;
+    for(std::size_t i = offset; i < span.size(); i++)
+    {
+        if(data[i] == '\n')
+        {
+            return i;
+        }
+    }
+    return span.size();
 }
 
-constexpr void CalculateForSpan(const std::span<const char> span, ankerl::unordered_dense::map<std::string, Indicators, CustomHash>& indicators)
+static void CalculateForSpan(const std::span<const char> span, ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>& indicators)
 {
+    indicators.reserve(10'000);
     std::size_t offset = 0;
     while(offset < span.size())
     {
@@ -108,14 +112,15 @@ constexpr void CalculateForSpan(const std::span<const char> span, ankerl::unorde
     }
 }
 
-ankerl::unordered_dense::map<std::string, Indicators, CustomHash> MergeResults(const std::vector<ankerl::unordered_dense::map<std::string, Indicators, CustomHash>>& indicators)
+static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> MergeResults(const std::vector<ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>>& indicators)
 {
-    ankerl::unordered_dense::map<std::string, Indicators, CustomHash> result;
+    ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> result;
+    result.reserve(10'000);
     for(const auto& db : indicators)
     {
         for(const auto& [key, indicator] : db)
         {
-            auto [it, inserted] = result.try_emplace(key, indicator);
+            auto [it, inserted] = result.try_emplace(std::move(key), indicator);
             if(inserted)
             {
                 continue;
@@ -130,10 +135,11 @@ ankerl::unordered_dense::map<std::string, Indicators, CustomHash> MergeResults(c
     return result;
 }
 
-ankerl::unordered_dense::map<std::string, Indicators, CustomHash> CalculateForSpanThreaded(const mio::mmap_source& file, std::size_t threadCount)
+static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> CalculateForSpanThreaded(const mio::mmap_source& file, std::size_t threadCount)
 {
     std::vector<std::thread> threads;
-    std::vector<ankerl::unordered_dense::map<std::string, Indicators, CustomHash>> results(threadCount);
+    threads.reserve(threadCount);
+    std::vector<ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>> results(threadCount);
     std::span<const char> span(file.data(), file.size());
     std::size_t spanSize = span.size();
     std::size_t chunkSize = std::max(spanSize / threadCount, 1ULL);
@@ -171,7 +177,13 @@ int main()
         return 1;
     }
     auto start = std::chrono::high_resolution_clock::now();
-    mio::mmap_source file(filePath.string());
+    std::error_code ec;
+    mio::mmap_source file = mio::make_mmap_source(filePath.string(), 0, mio::map_entire_file, ec);
+    if(ec)
+    {
+        std::cout << "Could not map file: " << ec.message() << '\n';
+        return 1;
+    }
     if(!file.is_open())
     {
         std::cout << "Could not open file\n";
@@ -180,7 +192,7 @@ int main()
     std::cout << "File size: " << file.size() << '\n';
     std::size_t count = 0;
     std::size_t threadCount = std::thread::hardware_concurrency();
-    ankerl::unordered_dense::map<std::string, Indicators, CustomHash> indicators = CalculateForSpanThreaded(file, threadCount);
+    ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> indicators = CalculateForSpanThreaded(file, threadCount);
     std::filesystem::path outputPath = std::filesystem::current_path() / "data" / "output.csv";
     std::ofstream output(outputPath, std::ios::trunc | std::ios::out);
     if(!output.is_open())

@@ -105,6 +105,7 @@
         "stdfloat": "cpp",
         "syncstream": "cpp",
         "typeindex": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "dense_hash_map": "cpp"
     }
 }
