@@ -18,9 +18,9 @@ endif()
 
 include(${PROJECT_SOURCE_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake)
 
-find_package(indicators CONFIG REQUIRED)
 find_package(unordered_dense CONFIG REQUIRED)
 find_package(mio CONFIG REQUIRED)
+find_path(STRINGZILLA_INCLUDE_DIRS "stringzilla/experimental.h")
 
 add_executable(AggregateData src/AggregateData.cpp)
 target_link_libraries(AggregateData PRIVATE unordered_dense::unordered_dense)
@@ -28,3 +28,4 @@ target_link_libraries(AggregateData PRIVATE mio::mio mio::mio-headers)
 if(WIN32)
     target_link_libraries(AggregateData PRIVATE mio::mio_min_winapi mio::mio_full_winapi)
 endif()
+target_include_directories(AggregateData PRIVATE ${STRINGZILLA_INCLUDE_DIRS})

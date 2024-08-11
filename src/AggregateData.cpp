@@ -7,6 +7,9 @@
 #include <span>
 #include <thread>
 #include <mio/mmap.hpp>
+#include <stringzilla/stringzilla.hpp>
+
+namespace szilla = ashvardanian::stringzilla;
 
 struct Indicators final
 {
@@ -16,16 +19,15 @@ struct Indicators final
     std::size_t Count;
 };
 
-static const std::size_t powers[] = {1, 31, 961, 29791, 923521, 28629151, 887503681, 27512614111};
-
 struct CustomHash final
 {
-    constexpr inline std::uint64_t operator()(const std::string_view key) const noexcept
+    inline std::uint64_t operator()(const szilla::string_view key) const noexcept
     {
         std::uint64_t hash = 0;
         const std::size_t keySize = key.size();
         const std::uint64_t size = keySize > 8 ? 8 : keySize;
-        for(std::uint64_t i = 0; i < size; i++)
+        static constexpr std::array<std::uint64_t, 8> powers = {1, 31, 961, 29791, 923521, 28629151, 887503681, 27512614111};
+        for(std::size_t i = 0; i < size; i++)
         {
             hash += key[i] * powers[i];
         }
@@ -33,7 +35,7 @@ struct CustomHash final
     }
 };
 
-constexpr inline static double ParseDouble(const std::string_view value)
+inline static double ParseDouble(const szilla::string_view value)
 {
     std::size_t result = 0;
     int fractionalLength = 0;
@@ -65,13 +67,14 @@ constexpr inline static double ParseDouble(const std::string_view value)
     return negative ? -finalResult : finalResult;
 }
 
-static void CalculateForLine(const std::string_view line, ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>& indicators)
+static void CalculateForLine(const szilla::string_view line, ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>& indicators)
 {
     std::size_t pos = line.find(';');
-    std::string_view key = line.substr(0, pos);
-    std::string_view value_string = line.substr(pos + 1);
+    szilla::string_view key = line.substr(0, pos);
+    szilla::string_view value_string = line.substr(pos + 1);
     double value = ParseDouble(value_string);
-    auto [it, inserted] = indicators.try_emplace(std::move(key), Indicators{value, value, value, 1});
+    szilla::string_view keyView(key.data(), key.size());
+    auto [it, inserted] = indicators.try_emplace(std::move(keyView), Indicators{value, value, value, 1});
     if(inserted)
     {
         return;
@@ -83,38 +86,26 @@ static void CalculateForLine(const std::string_view line, ankerl::unordered_dens
     indicator.Count++;
 }
 
-constexpr inline static std::size_t FindNewLineOffset(const std::span<const char> span, std::size_t offset)
-{
-    for(std::size_t i = offset; i < span.size(); i++)
-    {
-        if(span[i] == '\n')
-        {
-            return i;
-        }
-    }
-    return span.size();
-}
-
-static void CalculateForSpan(const std::span<const char> span, ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>& indicators)
+static void CalculateForSpan(const szilla::string_view span, ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>& indicators)
 {
     indicators.reserve(10'000);
     std::size_t offset = 0;
     while(offset < span.size())
     {
-        std::size_t newLineOffset = FindNewLineOffset(span, offset);
+        std::size_t newLineOffset = span.find('\n', offset);
         if(newLineOffset == std::string::npos)
         {
             break;
         }
-        std::string_view line = std::string_view(span.data() + offset, newLineOffset - offset);
+        szilla::string_view line = span.substr(offset, newLineOffset - offset + 1);
         CalculateForLine(line, indicators);
         offset = newLineOffset + 1;
     }
 }
 
-static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> MergeResults(const std::vector<ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>>& indicators)
+static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> MergeResults(const std::vector<ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>>& indicators)
 {
-    ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> result;
+    ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> result;
     result.reserve(10'000);
     for(const auto& db : indicators)
     {
@@ -135,12 +126,12 @@ static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> Me
     return result;
 }
 
-static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> CalculateForSpanThreaded(const mio::mmap_source& file, std::size_t threadCount)
+static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> CalculateForSpanThreaded(const mio::mmap_source& file, std::size_t threadCount)
 {
     std::vector<std::thread> threads;
     threads.reserve(threadCount);
-    std::vector<ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash>> results(threadCount);
-    std::span<const char> span(file.data(), file.size());
+    std::vector<ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>> results(threadCount);
+    szilla::string_view span(file.data(), file.size());
     std::size_t spanSize = span.size();
     std::size_t maxChunkSize = spanSize / threadCount;
     std::size_t chunkSize = maxChunkSize < 1ULL ? 1ULL : maxChunkSize;
@@ -158,7 +149,7 @@ static ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> Ca
         }
         threads.emplace_back([start, end, &span, &results, i]()
         {
-            CalculateForSpan(span.subspan(start, end - start), results[i]);
+            CalculateForSpan(span.substr(start, end - start), results[i]);
         });
         start = end + 1;
     }
@@ -193,7 +184,7 @@ int main()
     std::cout << "File size: " << file.size() << '\n';
     std::size_t count = 0;
     std::size_t threadCount = std::thread::hardware_concurrency();
-    ankerl::unordered_dense::map<std::string_view, Indicators, CustomHash> indicators = CalculateForSpanThreaded(file, threadCount);
+    ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> indicators = CalculateForSpanThreaded(file, threadCount);
     std::filesystem::path outputPath = std::filesystem::current_path() / "data" / "output.csv";
     std::ofstream output(outputPath, std::ios::trunc | std::ios::out);
     if(!output.is_open())

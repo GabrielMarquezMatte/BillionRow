@@ -112,7 +112,7 @@ def build_test_data(weather_station_names: list[str], num_rows_to_create: int):
     chunks = num_rows_to_create // batch_size
     print('Building test data...')
     try:
-        with ProcessPoolExecutor(max_workers=6) as executor:
+        with ProcessPoolExecutor(max_workers=8) as executor:
             futures = (executor.submit(generate_batch, station_names_10k_max, batch_size, 0, 20) for _ in range(chunks))
             with open("data/data.csv", 'wb') as file:
                 for future in tqdm(as_completed(futures), total=chunks, desc="Writing to file", unit="chunks"):
