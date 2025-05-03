@@ -66,7 +66,7 @@ To generate a large CSV dataset, use the provided Python script. This script wil
 2. Run the following command to generate the dataset:
 
     ```bash
-    python src/create_dataset.py 1000000000
+    python src/CreateFile.py 1000000000
     ```
 
    Replace `1000000000` with the desired number of records.
