@@ -27,7 +27,7 @@ struct CustomHash final
         const std::size_t keySize = key.size();
         const std::uint64_t size = keySize > 8 ? 8 : keySize;
         static constexpr std::array<std::uint64_t, 8> powers = {1, 31, 961, 29791, 923521, 28629151, 887503681, 27512614111};
-        for(std::size_t i = 0; i < size; i++)
+        for (std::size_t i = 0; i < size; i++)
         {
             hash += key[i] * powers[i];
         }
@@ -35,65 +35,66 @@ struct CustomHash final
     }
 };
 
-inline static double ParseDouble(const szilla::string_view value)
+inline static double ParseDouble(const szilla::string_view value) noexcept
 {
-    std::size_t result = 0;
-    int fractionalLength = 0;
-    bool negative = value[0] == '-';
-    bool decimalPoint = false;
-    for(std::size_t i = negative; i < value.size(); i++)
+    const char *ptr = value.data();
+    const char *end = ptr + value.size();
+    bool negative = false;
+    if (*ptr == '+' || *ptr == '-')
     {
-        char c = value[i];
-        if(c == '.')
-        {
-            decimalPoint = true;
-            continue;
-        }
-        result = result * 10 + (c - '0');
-        if(decimalPoint)
-        {
-            fractionalLength++;
-        }
+        negative = (*ptr == '-');
+        ++ptr;
     }
-    if(fractionalLength > 2)
+    double intPart = 0.0;
+    while (ptr < end && *ptr != '.')
     {
-        std::unreachable();
+        char c = *ptr++;
+        intPart = intPart * 10 + (c - '0');
     }
-    double finalResult = static_cast<double>(result);
-    while(fractionalLength--)
+
+    double fracPart = 0.0;
+    double divisor = 1.0;
+    if (ptr >= end || *ptr != '.')
     {
-        finalResult *= 0.1;
+        return negative ? -intPart : intPart;
     }
-    return negative ? -finalResult : finalResult;
+    ++ptr;
+    while (ptr < end)
+    {
+        char c = *ptr++;
+        fracPart = fracPart * 10 + (c - '0');
+        divisor *= 10;
+    }
+    double result = intPart + fracPart / divisor;
+    return negative ? -result : result;
 }
 
-static void CalculateForLine(const szilla::string_view line, ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>& indicators)
+static void CalculateForLine(const szilla::string_view line, ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> &indicators)
 {
     std::size_t pos = line.find(';');
     szilla::string_view key = line.substr(0, pos);
     szilla::string_view value_string = line.substr(pos + 1);
     double value = ParseDouble(value_string);
-    szilla::string_view keyView(key.data(), key.size());
-    auto [it, inserted] = indicators.try_emplace(std::move(keyView), Indicators{value, value, value, 1});
-    if(inserted)
+    auto [it, inserted] = indicators.try_emplace(std::move(key), Indicators{value, value, value, 1});
+    if (inserted)
     {
         return;
     }
-    Indicators& indicator = it->second;
+    Indicators &indicator = it->second;
     indicator.MinValue = std::min(indicator.MinValue, value);
     indicator.MaxValue = std::max(indicator.MaxValue, value);
     indicator.Sum += value;
     indicator.Count++;
 }
 
-static void CalculateForSpan(const szilla::string_view span, ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>& indicators)
+static void CalculateForSpan(const szilla::string_view span, ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> &indicators)
 {
     indicators.reserve(10'000);
     std::size_t offset = 0;
-    while(offset < span.size())
+    while (offset < span.size())
     {
         std::size_t newLineOffset = span.find('\n', offset);
-        if(newLineOffset == std::string::npos)
+        if (newLineOffset == std::string::npos)
         {
             break;
         }
@@ -103,20 +104,20 @@ static void CalculateForSpan(const szilla::string_view span, ankerl::unordered_d
     }
 }
 
-static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> MergeResults(const std::vector<ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>>& indicators)
+static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> MergeResults(const std::vector<ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>> &indicators)
 {
     ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> result;
     result.reserve(10'000);
-    for(const auto& db : indicators)
+    for (const auto &db : indicators)
     {
-        for(const auto& [key, indicator] : db)
+        for (const auto &[key, indicator] : db)
         {
             auto [it, inserted] = result.try_emplace(std::move(key), indicator);
-            if(inserted)
+            if (inserted)
             {
                 continue;
             }
-            Indicators& resultIndicator = it->second;
+            Indicators &resultIndicator = it->second;
             resultIndicator.MinValue = std::min(resultIndicator.MinValue, indicator.MinValue);
             resultIndicator.MaxValue = std::max(resultIndicator.MaxValue, indicator.MaxValue);
             resultIndicator.Sum += indicator.Sum;
@@ -126,7 +127,7 @@ static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>
     return result;
 }
 
-static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> CalculateForSpanThreaded(const mio::mmap_source& file, std::size_t threadCount)
+static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> CalculateForSpanThreaded(const mio::mmap_source &file, std::size_t threadCount)
 {
     std::vector<std::thread> threads;
     threads.reserve(threadCount);
@@ -136,24 +137,22 @@ static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>
     std::size_t maxChunkSize = spanSize / threadCount;
     std::size_t chunkSize = maxChunkSize < 1ULL ? 1ULL : maxChunkSize;
     std::size_t start = 0;
-    for(std::size_t i = 0; i < threadCount; i++)
+    for (std::size_t i = 0; i < threadCount; i++)
     {
         std::size_t end = i == threadCount - 1 ? spanSize : start + chunkSize;
         while (end < spanSize && span[end] != '\n')
         {
             end++;
         }
-        if(start >= end || end > spanSize)
+        if (start >= end || end > spanSize)
         {
             break;
         }
         threads.emplace_back([start, end, &span, &results, i]()
-        {
-            CalculateForSpan(span.substr(start, end - start), results[i]);
-        });
+                             { CalculateForSpan(span.substr(start, end - start), results[i]); });
         start = end + 1;
     }
-    for(auto& thread : threads)
+    for (auto &thread : threads)
     {
         thread.join();
     }
@@ -163,7 +162,7 @@ static ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash>
 int main()
 {
     std::filesystem::path filePath = std::filesystem::current_path() / "data" / "data.csv";
-    if(!std::filesystem::exists(filePath))
+    if (!std::filesystem::exists(filePath))
     {
         std::cout << "File does not exist\n";
         return 1;
@@ -171,12 +170,12 @@ int main()
     auto start = std::chrono::high_resolution_clock::now();
     std::error_code ec;
     mio::mmap_source file = mio::make_mmap_source(filePath.string(), 0, mio::map_entire_file, ec);
-    if(ec)
+    if (ec)
     {
         std::cout << "Could not map file: " << ec.message() << '\n';
         return 1;
     }
-    if(!file.is_open())
+    if (!file.is_open())
     {
         std::cout << "Could not open file\n";
         return 1;
@@ -187,12 +186,12 @@ int main()
     ankerl::unordered_dense::map<szilla::string_view, Indicators, CustomHash> indicators = CalculateForSpanThreaded(file, threadCount);
     std::filesystem::path outputPath = std::filesystem::current_path() / "data" / "output.csv";
     std::ofstream output(outputPath, std::ios::trunc | std::ios::out);
-    if(!output.is_open())
+    if (!output.is_open())
     {
         std::cout << "Could not open output file\n";
         return 1;
     }
-    for(const auto& [key, indicator] : indicators)
+    for (const auto &[key, indicator] : indicators)
     {
         output << key << ';' << indicator.MinValue << ';' << indicator.MaxValue << ';' << indicator.Sum / indicator.Count << '\n';
         count += indicator.Count;
